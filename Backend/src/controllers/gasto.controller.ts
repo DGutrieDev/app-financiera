@@ -2,59 +2,122 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { db } from '../config/database';
 
-export const getExpenses = async (req: AuthRequest, res: Response) => {
+export const obtenerGastos = async (req: AuthRequest, res: Response) => {
   try {
-    const expenses = await db.expense.findMany({
-      where: { userId: req.userId },
-      orderBy: { date: 'desc' },
-      include: { creditCard: true },
+    const usuarioId = req.usuario?.id || req.userId;
+    if (!usuarioId) return res.status(401).json({ error: 'Usuario no autenticado.' });
+
+    const gastos = await db.gasto.findMany({
+      where: { usuarioId },
+      include: { tarjeta: true },
+      orderBy: { creadoEn: 'desc' },
     });
-    return res.json(expenses);
+    return res.json(gastos);
   } catch (error) {
     return res.status(500).json({ error: 'Error al obtener los gastos.' });
   }
 };
 
-export const createExpense = async (req: AuthRequest, res: Response) => {
+export const crearGasto = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, amount, date, category, creditCardId } = req.body;
+    const usuarioId = req.usuario?.id || req.userId;
+    const { concepto, monto, categoria, tarjetaId } = req.body;
 
-    if (!name || amount === undefined) {
-      return res.status(400).json({ error: 'Nombre y monto son obligatorios.' });
+    if (!concepto || monto === undefined) {
+      return res.status(400).json({ error: 'El concepto y el monto son obligatorios.' });
     }
+    if (!usuarioId) return res.status(401).json({ error: 'Usuario no autenticado.' });
 
-    // Usamos una transacción por si el gasto se carga a una tarjeta de crédito
-    // y necesitamos actualizar automáticamente su monto adeudado (amountOwed).
-    const result = await db.$transaction(async (prisma) => {
-      const expense = await prisma.expense.create({
+    const resultado = await db.$transaction(async (prisma) => {
+      const gasto = await prisma.gasto.create({
         data: {
-          name,
-          amount,
-          date: date ? new Date(date) : new Date(),
-          category: category || 'General',
-          creditCardId: creditCardId || null,
-          userId: req.userId!,
+          concepto,
+          monto: Number(monto),
+          categoria: categoria || 'General',
+          tarjetaId: tarjetaId || null,
+          usuarioId,
         },
       });
 
-      // Si se indicó una tarjeta, sumamos el monto al adeudo actual de la tarjeta
-      if (creditCardId) {
-        await prisma.creditCard.update({
-          where: { id: creditCardId },
-          data: {
-            amountOwed: {
-              increment: Number(amount),
-            },
-          },
+      if (tarjetaId) {
+        await prisma.tarjeta.update({
+          where: { id: tarjetaId },
+          data: { deudaActual: { increment: Number(monto) } },
         });
       }
 
-      return expense;
+      return gasto;
     });
 
-    return res.status(201).json(result);
+    return res.status(201).json(resultado);
   } catch (error) {
-    console.error('Error creando gasto:', error);
     return res.status(500).json({ error: 'Error al registrar el gasto.' });
+  }
+};
+
+export const actualizarGasto = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const usuarioId = req.usuario?.id || req.userId;
+    const { concepto, monto, categoria, tarjetaId } = req.body;
+
+    const gastoAnterior = await db.gasto.findFirst({ where: { id, usuarioId } });
+    if (!gastoAnterior) return res.status(404).json({ error: 'Gasto no encontrado.' });
+
+    const resultado = await db.$transaction(async (prisma) => {
+      // Revertir deuda anterior si tenía tarjeta
+      if (gastoAnterior.tarjetaId) {
+        await prisma.tarjeta.update({
+          where: { id: gastoAnterior.tarjetaId },
+          data: { deudaActual: { decrement: gastoAnterior.monto } },
+        });
+      }
+
+      // Aplicar nueva deuda si tiene tarjeta
+      if (tarjetaId) {
+        await prisma.tarjeta.update({
+          where: { id: tarjetaId },
+          data: { deudaActual: { increment: Number(monto) } },
+        });
+      }
+
+      return await prisma.gasto.update({
+        where: { id },
+        data: {
+          concepto,
+          monto: Number(monto),
+          categoria: categoria || 'General',
+          tarjetaId: tarjetaId || null,
+        },
+      });
+    });
+
+    return res.json(resultado);
+  } catch (error) {
+    return res.status(500).json({ error: 'Error al actualizar el gasto.' });
+  }
+};
+
+export const eliminarGasto = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const usuarioId = req.usuario?.id || req.userId;
+
+    const gasto = await db.gasto.findFirst({ where: { id, usuarioId } });
+    if (!gasto) return res.status(404).json({ error: 'Gasto no encontrado.' });
+
+    await db.$transaction(async (prisma) => {
+      if (gasto.tarjetaId) {
+        await prisma.tarjeta.update({
+          where: { id: gasto.tarjetaId },
+          data: { deudaActual: { decrement: gasto.monto } },
+        });
+      }
+      await prisma.gasto.delete({ where: { id } });
+    });
+
+    return res.json({ mensaje: 'Gasto eliminado correctamente.' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Error al eliminar el gasto.' });
   }
 };

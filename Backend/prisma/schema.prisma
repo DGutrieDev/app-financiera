@@ -1,90 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model Usuario {
-  id              String             @id @default(uuid())
-  correo          String             @unique
-  passwordHash    String
-  nombre          String
-  apellido        String
-  pais            String             // Ejemplo: "Costa Rica", "México", "España"
-  creadoEn        DateTime           @default(now())
-  actualizadoEn   DateTime           @updatedAt
-
-  ingresos        Ingreso[]
-  tarjetasCredito TarjetaCredito[]
-  suscripciones   Suscripcion[]
-  gastos          Gasto[]
-
-  @@map("usuarios")
+  id            String        @id @default(uuid())
+  nombre        String
+  apellido      String
+  correo        String        @unique
+  password      String
+  pais          String        @default("Costa Rica")
+  ingresos      Ingreso[]
+  tarjetas      Tarjeta[]
+  suscripciones Suscripcion[]
+  gastos        Gasto[]
+  pagos         Pago[]        // <-- AGREGADO: Relación bidireccional con Pago
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
 }
 
 model Ingreso {
-  id            String   @id @default(uuid())
-  nombre        String   // Ejemplo: "Salario Principal", "Freelance"
-  monto         Decimal  @db.Decimal(12, 2)
-  frecuencia    String   // Ejemplo: "MENSUAL", "QUINCENAL", "PUNTUAL"
-  usuarioId     String
-  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  creadoEn      DateTime @default(now())
-
-  @@map("ingresos")
+  id         String   @id @default(uuid())
+  nombre     String
+  monto      Float
+  frecuencia String   @default("Mensual")
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  creadoEn   DateTime @default(now())
 }
 
-model TarjetaCredito {
-  id             String        @id @default(uuid())
-  nombre         String        // Solo identificador, e.g., "Visa Cashback"
-  montoAdeudado  Decimal       @db.Decimal(12, 2) @default(0.00)
-  fechaCorte     DateTime?
-  fechaPago      DateTime
-  usuarioId      String
-  usuario        Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  creadoEn       DateTime      @default(now())
-
-  suscripciones  Suscripcion[]
-  gastos         Gasto[]
-
-  @@map("tarjetas_credito")
+model Tarjeta {
+  id          String        @id @default(uuid())
+  nombre      String
+  limite      Float         @default(0) // <-- Nuevo campo para el límite de crédito
+  deudaActual Float         @default(0)
+  diaPago     Int
+  usuarioId   String
+  usuario     Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pagos       Pago[]
+  gastos      Gasto[]
+  suscripciones Suscripcion[]
+  creadoEn    DateTime      @default(now())
 }
 
 model Suscripcion {
-  id               String          @id @default(uuid())
-  nombre           String          // Ejemplo: "Netflix", "Spotify"
-  monto            Decimal         @db.Decimal(12, 2)
-  cicloCobro       String          // Ejemplo: "MENSUAL", "ANUAL"
-  proximaFechaPago DateTime
-  estaActiva       Boolean         @default(true)
-  
-  tarjetaCreditoId String?         // Opcional: Si se cobra a una tarjeta de crédito
-  tarjetaCredito   TarjetaCredito? @relation(fields: [tarjetaCreditoId], references: [id], onDelete: SetNull)
-  
-  usuarioId        String
-  usuario          Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  creadoEn         DateTime        @default(now())
-
-  @@map("suscripciones")
+  id        String   @id @default(uuid())
+  nombre    String
+  monto     Float
+  diaCobro  Int
+  pagadoMes String?
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tarjetaId String?
+  tarjeta   Tarjeta? @relation(fields: [tarjetaId], references: [id], onDelete: SetNull)
+  pagos     Pago[]
+  creadoEn  DateTime @default(now())
 }
 
 model Gasto {
-  id               String          @id @default(uuid())
-  nombre           String          // Ejemplo: "Supermercado", "Gasolina"
-  monto            Decimal         @db.Decimal(12, 2)
-  categoria        String          @default("General")
-  fecha            DateTime        @default(now())
+  id        String   @id @default(uuid())
+  concepto  String
+  monto     Float
+  categoria String?  @default("General")
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tarjetaId String?
+  tarjeta   Tarjeta? @relation(fields: [tarjetaId], references: [id], onDelete: SetNull)
+  creadoEn  DateTime @default(now())
+}
 
-  // OPCIONAL: Si no lleva tarjetaCreditoId, se deduce que se pagó de los ingresos/salario corriente
-  tarjetaCreditoId String?         
-  tarjetaCredito   TarjetaCredito? @relation(fields: [tarjetaCreditoId], references: [id], onDelete: SetNull)
-
-  usuarioId        String
-  usuario          Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  creadoEn         DateTime        @default(now())
-
-  @@map("gastos")
+model Pago {
+  id            String       @id @default(uuid())
+  concepto      String
+  monto         Float
+  categoria     String?      @default("General")
+  usuarioId     String
+  usuario       Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tarjetaId     String?
+  tarjeta       Tarjeta?     @relation(fields: [tarjetaId], references: [id], onDelete: SetNull)
+  suscripcionId String?
+  suscripcion   Suscripcion? @relation(fields: [suscripcionId], references: [id], onDelete: SetNull)
+  creadoEn      DateTime     @default(now())
 }

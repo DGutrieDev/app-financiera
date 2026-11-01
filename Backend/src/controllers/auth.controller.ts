@@ -24,7 +24,7 @@ export const registrar = async (req: Request, res: Response) => {
     const nuevoUsuario = await db.usuario.create({
       data: {
         correo,
-        passwordHash,
+        password: passwordHash,
         nombre,
         apellido,
         pais,
@@ -63,7 +63,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
-    const esPasswordValido = await bcrypt.compare(password, usuario.passwordHash);
+    const esPasswordValido = await bcrypt.compare(password, usuario.password);
     if (!esPasswordValido) {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }

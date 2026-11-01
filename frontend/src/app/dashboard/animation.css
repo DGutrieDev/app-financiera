@@ -1,0 +1,36 @@
+/* Transición de entrada al cambiar de página del dashboard.
+   El contenedor aparece con un fade y cada bloque de la página
+   (encabezado, métricas, paneles) sube suavemente de forma escalonada. */
+
+@keyframes pagina-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pagina-subir {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.pagina-entrada {
+  animation: pagina-fade 180ms ease-out backwards;
+}
+
+/* Hijos directos de la página (el div raíz de cada page.tsx) */
+.pagina-entrada > * > * {
+  animation: pagina-subir 380ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.pagina-entrada > * > *:nth-child(1) { animation-delay: 0ms; }
+.pagina-entrada > * > *:nth-child(2) { animation-delay: 60ms; }
+.pagina-entrada > * > *:nth-child(3) { animation-delay: 120ms; }
+.pagina-entrada > * > *:nth-child(4) { animation-delay: 180ms; }
+.pagina-entrada > * > *:nth-child(n + 5) { animation-delay: 240ms; }
+
+/* Respeta a quienes tienen desactivadas las animaciones en su sistema */
+@media (prefers-reduced-motion: reduce) {
+  .pagina-entrada,
+  .pagina-entrada > * > * {
+    animation: none;
+  }
+}

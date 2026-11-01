@@ -2,4 +2,7 @@ Backend/.env
 Backend/node_modules
 Backend/dist
 
+frontend/node_modules
+frontend/.env
+
 .vscode

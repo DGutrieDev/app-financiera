@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middlewares/auth.middleware';
-import { getIncomes, createIncome } from '../controllers/ingreso.controller';
-import { getCards, createCard } from '../controllers/tarjeta.controller';
-import { getSubscriptions, createSubscription, toggleSubscriptionStatus } from '../controllers/suscripcion.controller';
-import { getExpenses, createExpense } from '../controllers/gasto.controller';
-import { getDashboardMetrics } from '../controllers/dashboard.controller';
+import { crearIngreso, obtenerIngresos, actualizarIngreso, eliminarIngreso } from '../controllers/ingreso.controller';
+import { crearTarjeta, obtenerTarjetas, actualizarTarjeta, eliminarTarjeta } from '../controllers/tarjeta.controller';
+import { crearSuscripcion, obtenerSuscripciones, actualizarSuscripcion, eliminarSuscripcion, togglePagoSuscripcion } from '../controllers/suscripcion.controller';
+import { crearGasto, obtenerGastos, actualizarGasto, eliminarGasto } from '../controllers/gasto.controller';
+import { obtenerDashboard } from '../controllers/dashboard.controller';
+import { crearPago, obtenerPagos, eliminarPago } from '../controllers/pago.controller';
 
 const router = Router();
 
@@ -12,23 +13,36 @@ const router = Router();
 router.use(verifyJWT);
 
 // Dashboard
-router.get('/dashboard', getDashboardMetrics);
+router.get('/dashboard', obtenerDashboard);
 
 // Ingresos
-router.get('/incomes', getIncomes);
-router.post('/incomes', createIncome);
+router.get('/ingresos', obtenerIngresos);
+router.post('/ingresos', crearIngreso);
+router.put('/ingresos/:id', actualizarIngreso);
+router.delete('/ingresos/:id', eliminarIngreso);
 
 // Tarjetas de Crédito
-router.get('/cards', getCards);
-router.post('/cards', createCard);
+router.get('/tarjetas', obtenerTarjetas);
+router.post('/tarjetas', crearTarjeta);
+router.put('/tarjetas/:id', actualizarTarjeta);
+router.delete('/tarjetas/:id', eliminarTarjeta);
 
 // Suscripciones
-router.get('/subscriptions', getSubscriptions);
-router.post('/subscriptions', createSubscription);
-router.patch('/subscriptions/:id/toggle', toggleSubscriptionStatus);
+router.get('/suscripciones', obtenerSuscripciones);
+router.post('/suscripciones', crearSuscripcion);
+router.put('/suscripciones/:id', actualizarSuscripcion);
+router.delete('/suscripciones/:id', eliminarSuscripcion);
+router.patch('/suscripciones/:id/toggle', togglePagoSuscripcion);
 
-// Otros Gastos
-router.get('/expenses', getExpenses);
-router.post('/expenses', createExpense);
+// Gastos Variables
+router.get('/gastos', obtenerGastos);
+router.post('/gastos', crearGasto);
+router.put('/gastos/:id', actualizarGasto);
+router.delete('/gastos/:id', eliminarGasto);
+
+// Pagos
+router.get('/payments', obtenerPagos);
+router.post('/payments', crearPago);
+router.delete('/payments/:id', eliminarPago);
 
 export default router;
